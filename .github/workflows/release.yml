@@ -14,9 +14,9 @@ jobs:
     environment: release
     timeout-minutes: 360
     env:
-      ANDROID_HOME: ${{ runner.temp }}/android-sdk
-      ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
-      ANDROID_NDK_HOME: ${{ runner.temp }}/android-sdk/ndk/28.2.13676358
+      ANDROID_HOME: /tmp/dsh-android-sdk
+      ANDROID_SDK_ROOT: /tmp/dsh-android-sdk
+      ANDROID_NDK_HOME: /tmp/dsh-android-sdk/ndk/28.2.13676358
       DSH_BUILD_JOBS: 4
       DSH_CI_CLEAN_OBJECTS: 1
     steps:
@@ -93,6 +93,7 @@ jobs:
             app/src/main/assets/runtime-manifest.json
       - if: always()
         run: rm -f "$RUNNER_TEMP/dsh-release.jks"
+
 
 
 

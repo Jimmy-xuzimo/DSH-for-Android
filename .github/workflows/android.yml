@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
-      ANDROID_HOME: ${{ runner.temp }}/android-sdk
-      ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
-      ANDROID_NDK_HOME: ${{ runner.temp }}/android-sdk/ndk/28.2.13676358
+      ANDROID_HOME: /tmp/dsh-android-sdk
+      ANDROID_SDK_ROOT: /tmp/dsh-android-sdk
+      ANDROID_NDK_HOME: /tmp/dsh-android-sdk/ndk/28.2.13676358
       DSH_BUILD_JOBS: 4
       DSH_CI_CLEAN_OBJECTS: 1
     steps:
@@ -59,5 +59,6 @@ jobs:
             app/build/outputs/androidTest-results/
             app/src/main/assets/runtime-manifest.json
           retention-days: 14
+
 
 
