@@ -1,0 +1,8 @@
+{
+  "name": "dsh-for-android",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0-preview.1",
+  "scripts": { "test": "node --test tests/*.test.mjs" },
+  "engines": { "node": ">=24.9.0" }
+}

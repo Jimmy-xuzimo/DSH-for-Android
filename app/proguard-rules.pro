@@ -1,0 +1,1 @@
+-keepclassmembers class com.dshmobile.shell.** { @android.webkit.JavascriptInterface <methods>; }

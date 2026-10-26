@@ -1,0 +1,15 @@
+.gradle/
+**/build/
+local.properties
+runtime/staging/
+runtime/downloads/
+runtime/build/
+app/src/main/jniLibs/
+app/src/main/assets/runtime.zip
+app/src/main/assets/runtime-manifest.json
+*.jks
+*.keystore
+*.p12
+*.log
+.env*
+!*.example

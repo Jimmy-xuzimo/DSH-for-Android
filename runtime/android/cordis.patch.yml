@@ -1,0 +1,28 @@
+- id: directory-picker
+  name: '@deepseek-ai/dsh-host-directory-picker-browse'
+- id: open-in-app
+  disabled: true
+- id: ui-open-in-app
+  disabled: true
+- id: sandbox-policy
+  config:
+    mode: !!js "process.env.DSH_ANDROID_COMMANDS === '1' ? 'danger-full-access' : 'workspace-write'"
+    workspaceRoot: !!js process.cwd()
+- id: approval
+  config:
+    policy: ask
+- id: permission
+  config:
+    defaultPreset: !!js "process.env.DSH_ANDROID_COMMANDS === '1' ? 'android-application' : 'workspace-write'"
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      android-application:
+        sandbox: danger-full-access
+        approval: ask
+        name: '应用权限 / App access'
+        description: '命令可访问本应用获准的私有文件和网络，保留工具审批。Commands can access app data and network; tool approval remains enabled.'

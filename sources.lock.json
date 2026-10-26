@@ -1,0 +1,38 @@
+{
+  "upstream.tar.gz": {
+    "url": "https://codeload.github.com/deepseek-ai/deepseek-harness/tar.gz/22ddee3792402c3e70ec5f86a63c3e3e895a2f60",
+    "sha256": "aac1a309de68ada068d9658ac173caabcfb3ed21e638bdf192f0abe37bb14d0b"
+  },
+  "node-v24.21.0.tar.xz": {
+    "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0.tar.xz",
+    "sha256": "a6f54defb6fd7c84f41dba13d61e78e9b4e0961712cf61f29715c05f5ced94fc"
+  },
+  "bash-5.3.tar.gz": {
+    "url": "https://ftp.gnu.org/gnu/bash/bash-5.3.tar.gz",
+    "sha256": "0d5cd86965f869a26cf64f4b71be7b96f90a3ba8b3d74e27e8e9d9d5550f31ba"
+  },
+  "zlib-1.3.1.tar.gz": {
+    "url": "https://zlib.net/fossils/zlib-1.3.1.tar.gz",
+    "sha256": "9a93b2b7dfdac77ceba5a558a580e74667dd6fede4585b91eefb60f03b72df23"
+  },
+  "openssl-3.5.4.tar.gz": {
+    "url": "https://codeload.github.com/openssl/openssl/tar.gz/refs/tags/openssl-3.5.4",
+    "sha256": "758b69feed5787dc12d34b0eb29b60d3c9d73d5a64760c62d93a6d26b344d65d"
+  },
+  "curl-8.16.0.tar.xz": {
+    "url": "https://curl.se/download/curl-8.16.0.tar.xz",
+    "sha256": "40c8cddbcb6cc6251c03dea423a472a6cea4037be654ba5cf5dec6eb2d22ff1d"
+  },
+  "git-2.51.2.tar.xz": {
+    "url": "https://www.kernel.org/pub/software/scm/git/git-2.51.2.tar.xz",
+    "sha256": "233d7143a2d58e60755eee9b76f559ec73ea2b3c297f5b503162ace95966b4e3"
+  },
+  "cacert.pem": {
+    "url": "https://curl.se/ca/cacert-2026-10-20.pem",
+    "sha256": "796f1389bfea13c0ed78f663b765baaff54a508e5483786bd6ece73c5e3e3cbe"
+  },
+  "ripgrep-14.1.1.tar.gz": {
+    "sha256": "4dad02a2f9c8c3c8d89434e47337aa654cb0e2aa50e806589132f186bf5c2b66",
+    "url": "https://codeload.github.com/BurntSushi/ripgrep/tar.gz/refs/tags/14.1.1"
+  }
+}

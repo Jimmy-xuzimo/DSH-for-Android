@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">DSH for Android</string>
+    <string name="preparing">正在准备本机引擎…</string>
+    <string name="start">启动引擎</string>
+    <string name="stop">停止引擎</string>
+    <string name="restart">重新启动</string>
+    <string name="workspaces">工作区</string>
+    <string name="import_project">导入项目 ZIP</string>
+    <string name="export_project">导出当前项目</string>
+    <string name="new_project">新建项目</string>
+    <string name="clone_project">克隆 Git 仓库</string>
+    <string name="repository_url">HTTPS 仓库地址</string>
+    <string name="commands">命令执行权限</string>
+    <string name="diagnostics">诊断信息</string>
+    <string name="about">关于此移植版</string>
+    <string name="command_warning">命令可以访问本应用的私有文件，包括所有工作区和使用中的凭据，并可访问网络。Android 将本应用与其他应用隔离，但这不等于严格的工作区隔离。请仅为可信项目和插件开启命令执行。</string>
+    <string name="enable">开启</string>
+    <string name="disable">关闭</string>
+    <string name="cancel">取消</string>
+    <string name="engine_running">本机引擎正在运行</string>
+    <string name="engine_stopped">引擎已停止</string>
+    <string name="error_title">操作未完成</string>
+    <string name="missing_runtime">此安装包缺少已验证运行时，请完成运行时构建后重新安装。</string>
+    <string name="version_notice">独立 Android 移植版。模型请求需要配置服务商并连接网络。卸载旧版前，请先导出旧数据。</string>
+    <string name="project_name">项目名称</string>
+    <string name="done">完成</string>
+    <string name="stopping">正在停止引擎…</string>
+    <string name="retry">重试</string>
+    <string name="update_webview">请先更新 Android System WebView（Chromium 113 或更新版本）再运行 DSH 界面。安卓系统与 WebView 分别更新。</string>
+    <string name="update">更新 WebView</string>
+    <string name="restart_restricted">安卓限制了后台重启。请打开本应用，从菜单选择启动。</string>
+</resources>

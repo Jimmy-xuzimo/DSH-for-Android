@@ -1,0 +1,32 @@
+<resources>
+    <string name="app_name">DSH for Android</string>
+    <string name="preparing">Preparing the on-device engine…</string>
+    <string name="start">Start engine</string>
+    <string name="stop">Stop engine</string>
+    <string name="restart">Restart</string>
+    <string name="workspaces">Workspaces</string>
+    <string name="import_project">Import project ZIP</string>
+    <string name="export_project">Export current project</string>
+    <string name="new_project">New project</string>
+    <string name="clone_project">Clone Git repository</string>
+    <string name="repository_url">HTTPS repository URL</string>
+    <string name="commands">Command execution</string>
+    <string name="diagnostics">Diagnostics</string>
+    <string name="about">About this port</string>
+    <string name="command_warning">Commands can access this app’s private files, including all workspaces and active credentials, and use the network. Android isolates this app from other apps, but this is not strict workspace isolation. Enable command execution only for projects and plugins you trust.</string>
+    <string name="enable">Enable</string>
+    <string name="disable">Disable</string>
+    <string name="cancel">Cancel</string>
+    <string name="engine_running">On-device engine is running</string>
+    <string name="engine_stopped">Engine stopped</string>
+    <string name="error_title">Unable to complete operation</string>
+    <string name="missing_runtime">This build is missing a verified runtime. Rebuild the runtime before installing this APK.</string>
+    <string name="version_notice">Independent Android port. Model requests require a configured provider and network access. Export your old data before uninstalling the previous app.</string>
+    <string name="project_name">Project name</string>
+    <string name="done">Done</string>
+    <string name="stopping">Stopping the engine…</string>
+    <string name="retry">Retry</string>
+    <string name="update_webview">Update Android System WebView (Chromium 113 or newer) to run the DSH interface. Android version and WebView version are updated independently.</string>
+    <string name="update">Update WebView</string>
+    <string name="restart_restricted">Android restricted the background restart. Open this app and choose Start from its menu.</string>
+</resources>

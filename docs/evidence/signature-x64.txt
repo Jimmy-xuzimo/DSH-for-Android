@@ -1,0 +1,17 @@
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signer #1 certificate DN: CN=Zimo Xu, OU=Android, O=DSH for Android
+Signer #1 certificate SHA-256 digest: 8b2b8e5c19de9998d99bf416a786994783b0e82f727c99605e196b95cde7b202
+Signer #1 certificate SHA-1 digest: f4ddaff7d44d45961e6d937db366654c558eb242
+Signer #1 certificate MD5 digest: 6de453ee7b6347d2d37e439237b97562
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 3072
+Signer #1 public key SHA-256 digest: c3a9376ff72cf7c109917cba0537eeaf47d47e77145608f1aa48b6a8bf59b59a
+Signer #1 public key SHA-1 digest: f6623e8ae405b131825e4b59dd9cacc6e9bd7c6a
+Signer #1 public key MD5 digest: 298dead0172425f8fdd6ead547afa14a

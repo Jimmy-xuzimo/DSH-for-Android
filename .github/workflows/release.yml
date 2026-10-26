@@ -1,0 +1,90 @@
+name: Signed preview release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Preview version tag (must match app version)
+        required: true
+        default: v1.0.0-preview.1
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 360
+    env:
+      ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/28.2.13676358
+      DSH_BUILD_JOBS: 4
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24.21.0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25.0.3
+      - name: Require signing configuration
+        env:
+          DSH_KEYSTORE_BASE64: ${{ secrets.DSH_KEYSTORE_BASE64 }}
+          DSH_STORE_PASSWORD: ${{ secrets.DSH_STORE_PASSWORD }}
+          DSH_KEY_ALIAS: ${{ secrets.DSH_KEY_ALIAS }}
+          DSH_KEY_PASSWORD: ${{ secrets.DSH_KEY_PASSWORD }}
+        run: |
+          test -n "$DSH_KEYSTORE_BASE64"
+          test -n "$DSH_STORE_PASSWORD"
+          test -n "$DSH_KEY_ALIAS"
+          test -n "$DSH_KEY_PASSWORD"
+          printf '%s' "$DSH_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/dsh-release.jks"
+      - run: npm install --global pnpm@11.28.5
+      - run: rustup toolchain install 1.85.1 --profile minimal && rustup target add --toolchain 1.85.1 aarch64-linux-android x86_64-linux-android
+      - run: sudo apt-get update && sudo apt-get install -y python3 build-essential autoconf automake libtool pkg-config unzip
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'
+      - run: npm test && bash scripts/build-runtime.sh
+      - name: Verify complete runtime on Android
+        run: chmod +x gradlew && ./gradlew :app:assembleX64Debug :app:assembleX64DebugAndroidTest
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          profile: pixel_7
+          script: ./gradlew :app:connectedX64DebugAndroidTest
+      - name: Build signed APKs
+        env:
+          DSH_KEYSTORE: ${{ runner.temp }}/dsh-release.jks
+          DSH_STORE_PASSWORD: ${{ secrets.DSH_STORE_PASSWORD }}
+          DSH_KEY_ALIAS: ${{ secrets.DSH_KEY_ALIAS }}
+          DSH_KEY_PASSWORD: ${{ secrets.DSH_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testX64DebugUnitTest :app:lintArm64Release :app:assembleArm64Release :app:assembleX64Release
+          sha256sum app/build/outputs/apk/*/release/*.apk > SHA256SUMS
+      - name: Verify signatures and package sources
+        run: |
+          for apk in app/build/outputs/apk/*/release/*.apk; do "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$apk"; done
+          cargo +1.85.1 vendor --locked --manifest-path runtime/build/search/arm64-v8a/Cargo.toml "$RUNNER_TEMP/rust-vendor"
+          python3 scripts/package-source.py release-assets --downloads runtime/downloads --rust-vendor "$RUNNER_TEMP/rust-vendor"
+          cp app/build/outputs/apk/arm64/release/*.apk release-assets/dsh-android-arm64-v8a.apk
+          cp app/build/outputs/apk/x64/release/*.apk release-assets/dsh-android-x86_64.apk
+          cp upstream.lock.json THIRD_PARTY_NOTICES.md docs/VALIDATION.md release-assets/
+          (cd release-assets && sha256sum *.apk *.tar.gz *.json *.md > SHA256SUMS)
+      - name: Publish verified preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          test "$RELEASE_TAG" = "v$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')"
+          gh release create "$RELEASE_TAG" release-assets/* --target "$GITHUB_SHA" --prerelease --title "DSH for Android $RELEASE_TAG" --notes-file docs/RELEASE.md
+      - uses: actions/upload-artifact@v7
+        with:
+          name: signed-preview-review
+          path: |
+            app/build/outputs/apk/*/release/*.apk
+            SHA256SUMS
+            app/src/main/assets/runtime-manifest.json
+      - if: always()
+        run: rm -f "$RUNNER_TEMP/dsh-release.jks"
+
+
+

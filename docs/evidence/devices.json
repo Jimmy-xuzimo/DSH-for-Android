@@ -1,0 +1,42 @@
+[
+  {
+    "label": "API36",
+    "release": "16",
+    "sdk": "36",
+    "abi": "x86_64",
+    "pageSize": "4096",
+    "webview": "Current WebView package (name, version): (com.google.android.webview, 133.0.6943.137)"
+  },
+  {
+    "label": "16KB",
+    "release": "17",
+    "sdk": "37",
+    "abi": "x86_64",
+    "pageSize": "16384",
+    "webview": "Current WebView package (name, version): (com.google.android.webview, 149.0.7827.5)"
+  },
+  {
+    "label": "API35",
+    "release": "15",
+    "sdk": "35",
+    "abi": "x86_64",
+    "pageSize": "4096",
+    "webview": "Current WebView package (name, version): (com.google.android.webview, 124.0.6367.219)"
+  },
+  {
+    "label": "API29",
+    "release": "10",
+    "sdk": "29",
+    "abi": "x86_64",
+    "pageSize": "4096",
+    "webview": "Current WebView package (name, version): (com.google.android.webview, 133.0.6943.137)"
+  },
+  {
+    "label": "API31",
+    "release": "12",
+    "sdk": "31",
+    "abi": "x86_64",
+    "pageSize": "4096",
+    "webview": "Current WebView package (name, version): (com.google.android.webview, 133.0.6943.137)"
+  }
+]

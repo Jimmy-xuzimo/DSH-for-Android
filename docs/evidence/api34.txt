@@ -1,0 +1,10 @@
+
+com.dshmobile.shell.EngineStartupTest:.
+com.dshmobile.shell.ExtensionRuntimeTest:.
+com.dshmobile.shell.NativeRuntimeTest:.....
+
+Time: 33.164
+
+OK (7 tests)
+
+
