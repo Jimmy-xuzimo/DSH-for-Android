@@ -60,6 +60,14 @@ await patch('packages/api/session-controller/src/client/time-zone.ts', source =>
   // of the IANA name required by the server. Preserve all actual named zones.
   return source.replace(anchor, "  return /^(?:[+-]00:00|GMT|Etc\\/UTC|Etc\\/GMT)$/.test(timeZone) ? 'UTC' : timeZone");
 });
+await patch('packages/client/resources/src/client/resources.ts', source => {
+  const anchor = "  return parsed.hostname === '' ? undefined : parsed.hostname.toLowerCase()";
+  if (!source.includes(anchor)) throw new Error('Client resource protocol contract changed');
+  // WebView before Chromium 130 leaves non-special URL authorities in the
+  // opaque pathname. Accept only a literal, ASCII resource type in that case.
+  return source.replace(anchor, `  if (parsed.hostname !== '') return parsed.hostname.toLowerCase()
+  return /^dsh-resource:\\/\\/([a-z0-9][a-z0-9.-]*)(?:[/?#]|$)/i.exec(address)?.[1]?.toLowerCase()`);
+});
 await patch('packages/boot/app-boot/src/profile-resolution/resolver.ts', source => {
   const anchor = "const addon = require('node-addon-require-builtin') as { requireBuiltin(moduleId: string): unknown }";
   if (!source.includes(anchor)) throw new Error('Upstream internal-module access contract changed');

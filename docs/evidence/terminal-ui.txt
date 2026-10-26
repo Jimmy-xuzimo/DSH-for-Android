@@ -1,0 +1,14 @@
+Into the Unknown
+Preview
+Projects
+Standard mode
+Describe what you want to build, / commands, @ files or sessions
+DeepSeek-V4.1-Flash
+1017
+High
+libdsh_bash.so
+<t; cat .dsh-ui-check.txt; pwd                 
+终端输入验证
+/data/data/com.dshmobile.shell/files/workspaces/
+Projects
+libdsh_bash.so-5.3$  

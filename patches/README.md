@@ -12,3 +12,5 @@
 The runtime overlay selects the in-page directory picker, removes desktop “Open In” integration, and keeps upstream per-tool approval. The carrier preload authenticates HTTP and WebSocket traffic and redirects native-addon loading to installed APK libraries.
 
 These changes do not alter the upstream session format. Any future baseline update must reapply and retest the patch contracts; patch failures stop packaging.
+
+- Parse internal resource authorities on WebView versions that expose custom-scheme authorities as opaque paths; retain the protocol allowlist and host file-access checks.

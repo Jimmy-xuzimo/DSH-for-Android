@@ -28,11 +28,12 @@ Android 10/12 镜像的旧 WebView 在测试前使用 Android SDK 镜像内 Goog
 
 八个设备测试方法包含多个断言，覆盖：完整 DSH/WebView 启动、未认证请求返回 403、Keystore 包装密钥不可导出、APK 安装目录 Bash 执行、可写目录 ELF 被系统拒绝、Node 启动 Bash、中文 PTY 输入和缩放、Git 提交和 ripgrep、npm/pnpm、原子发布不覆盖已有文件、离线安装并加载/清理 JavaScript 插件、本地及 HTTP MCP 的发现和调用、ZIP 往返、凭据过滤、导入冲突与越界拒绝。MCP 使用本地夹具，不代表所有第三方服务的认证兼容性。
 
-服务重启测试另覆盖连续两次请求共享重启所有者、重新就绪与令牌更新。后台重启被系统限制时显示可诊断状态，不承诺永久保活。
+服务重启测试另覆盖连续两次请求共享重启所有者、重新就绪与令牌更新。Android 15 上额外验证正常重启保持同一来源与浏览器偏好、清除旧页面；端口被占用时停止连接，显式重试后更换端口恢复。后台重启被系统限制时显示可诊断状态，不承诺永久保活。
 
 ## 功能与界面
 
 - 在完整 APK 的上游界面配置模拟 API Key，获得流式 `DSH_ANDROID_MODEL_OK` 回复；重新打开已有会话并重载后回复仍在。加密文件为 `DSH-ANDROID-CREDENTIALS-1:` 格式，未包含模拟密钥明文。
+- Android 15 / WebView 124 界面实测：命令关闭时终端明确拒绝；原生菜单说明权限边界后主动开启，终端输入中文、写入文件，再由上游文件预览打开同一文件成功。修复旧 WebView 对内部资源地址的解析差异。[终端记录](evidence/terminal-ui.txt)、[权限说明](screenshots/command-permission.png)、[中文终端](screenshots/terminal-chinese.png)、[文件预览](screenshots/file-preview.png)、[预览记录](evidence/file-preview-ui.txt)。
 - 设备 WebView 实测宽度 360、412、844、1600 CSS 像素，覆盖窄屏、横屏和宽平板窗口，无页面横向溢出；调整窗口后已有回复保持可见。
 - 实测 1.6 倍系统字体、系统深浅色和软键盘。键盘显示后可用高度从 683 降至 408 CSS 像素，输入区与发送按钮位于键盘上方。
 - [手机](screenshots/phone.png)、[平板](screenshots/tablet.png)、[横屏](screenshots/landscape-phone.png)、[大字体](screenshots/phone-large-font.png)、[深色](screenshots/phone-dark.png)、[实际键盘](screenshots/phone-with-ime.png)。

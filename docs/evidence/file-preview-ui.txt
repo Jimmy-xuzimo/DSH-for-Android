@@ -1,0 +1,14 @@
+Into the Unknown
+Preview
+Projects
+Standard mode
+Describe what you want to build, / commands, @ files or sessions
+DeepSeek-V4.1-Flash
+1017
+High
+Files
+.dsh-ui-check.txt
+/data/data/com.dshmobile.shell/files/workspaces/Projects/.dsh-ui-check.txt
+终端输入验证
+
+[ { placeholder: '', type: 'file' } ]
