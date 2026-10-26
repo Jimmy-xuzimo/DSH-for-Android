@@ -22,6 +22,7 @@ inventory = json.loads((stage / 'package-inventory.json').read_text())
 shutil.copytree(project / 'runtime/android', stage / 'android', dirs_exist_ok=True)
 shutil.copytree(args.node_source / 'deps/npm', stage / 'npm', dirs_exist_ok=True, symlinks=False)
 commands = {'node': 'libdsh_node.so', 'bash': 'libdsh_bash.so', 'git': 'libdsh_git.so', 'rg': 'libdsh_rg.so',
+            'git-upload-pack': 'libdsh_git.so', 'git-receive-pack': 'libdsh_git.so', 'git-upload-archive': 'libdsh_git.so',
             'git-remote-http': 'libdsh_git_remote_http.so', 'git-remote-https': 'libdsh_git_remote_http.so',
             'curl': 'libdsh_curl.so', 'pnpm': 'libdsh_pnpm.so', 'npm': 'libdsh_npm.so', 'npx': 'libdsh_npx.so'}
 addons = {'android/android-posix.node': 'libdsh_posix.so'}

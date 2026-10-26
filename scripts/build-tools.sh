@@ -56,7 +56,7 @@ HEADER
 fi
 make -j"${DSH_BUILD_JOBS:-8}" CC="$CC" AR="$AR" \
   NO_GETTEXT=YesPlease NO_TCLTK=YesPlease NO_PERL=YesPlease NO_PYTHON=YesPlease \
-  NO_PTHREADS=YesPlease SHELL=/bin/sh SHELL_PATH=/bin/sh \
+  NO_PTHREADS=YesPlease NO_GECOS_IN_PWENT=YesPlease SHELL=/bin/sh SHELL_PATH=/bin/sh \
   NO_EXPAT=YesPlease NO_REGEX=YesPlease NO_ICONV=YesPlease NO_UNCOMPRESS2=YesPlease \
   CURLDIR="$prefix" OPENSSLDIR="$prefix" ZLIB_PATH="$prefix" \
   CURL_LDFLAGS="$prefix/lib/libcurl.a $prefix/lib/libssl.a $prefix/lib/libcrypto.a $prefix/lib/libz.a" \

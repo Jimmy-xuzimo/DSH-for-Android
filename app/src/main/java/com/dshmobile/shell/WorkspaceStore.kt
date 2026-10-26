@@ -47,7 +47,7 @@ class WorkspaceStore(private val context: Context) {
             val reader = Thread { child.inputStream.bufferedReader().useLines { lines -> lines.forEach { if (output.length < 32768) output.appendLine(it) } } }.apply { start() }
             if (!child.waitFor(180, java.util.concurrent.TimeUnit.SECONDS)) { child.destroyForcibly(); throw IllegalStateException("Git clone timed out") }
             reader.join(3000)
-            check(child.exitValue() == 0) { "Git clone failed: ${output.takeLast(2048)}" }
+            check(child.exitValue() == 0) { "Git clone failed (${child.exitValue()}): ${output.takeLast(2048)}" }
             select(destination)
             return destination
         } catch (error: Exception) {

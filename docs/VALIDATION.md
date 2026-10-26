@@ -11,6 +11,8 @@
 - 5 个 Node 测试通过：HTTP/WebSocket 认证与来源策略，凭据加密、重载、篡改与错误密钥，以及旧 WebView 兼容函数。
 - 缺少签名设置时，发布检查明确以 `Missing release signing setting: DSH_KEYSTORE` 失败，未回退至调试签名。
 
+矩阵记录在开发过程中采集；最终资源地址兼容补丁已在 Android 10/15 复测，Git 默认身份兼容修复已在 Android 10 全套测试和 Android 16 正式签名包的 HTTPS 克隆中验证。其余系统记录不等于每次后续 APK 都完成同包回归。
+
 ## 实际运行矩阵
 
 全部为独立 Android Emulator，均为 x86_64，未使用实体手机或平板。[设备记录](evidence/devices.json)
@@ -47,6 +49,8 @@ Android 10/12 镜像的旧 WebView 在测试前使用 Android SDK 镜像内 Goog
 - ZIP 实测过滤 `.env`、`.npmrc`、SSH 目录和符号链接；重复导入产生不同目录，越界输入被拒绝且原工作区保持不变。系统文件选择器完整交互与权限撤回仍需人工验收。
 - APK Signature Scheme v2 和 zipalign 16 KB 检查通过。独立 RSA 3072 位证书 SHA-256：`8b2b8e5c19de9998d99bf416a786994783b0e82f727c99605e196b95cde7b202`。[ARM64 签名](evidence/signature-arm64.txt)、[x86_64 签名](evidence/signature-x64.txt)
 - 私钥独立备份，不在源码、APK 或公开附件中。
+- 正式签名 x86_64 APK 通过原生菜单实际 HTTPS 克隆公开测试仓库，检查私有目录内 `.git` 与 README，并完成工作区切换。[记录](evidence/https-clone.txt)。修复 Bionic 未提供 GECOS 字段时 Git 自动身份读取崩溃，补齐内置 upload/receive helper 别名；回归验证未配置用户名/邮箱时仍能克隆，原提交作者保持不变。
+- Android 10 上在暂存目录刚创建后强制终止初始化；重新打开完成恢复，原工作区标记文件保持不变，恢复后 8 项测试通过。[中断记录](evidence/initialization-interruption.txt)。
 - 旧仓库 bundle 校验、独立恢复克隆及 git fsck 通过；旧 APK 校验值与 Release 元数据一致。
 
 ## 尚待验收

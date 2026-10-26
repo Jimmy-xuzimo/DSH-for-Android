@@ -1,0 +1,3 @@
+INSTRUMENTATION_RESULT: directory=/data/user/0/com.dshmobile.shell/files/workspaces/clone-network-check
+INSTRUMENTATION_RESULT: result=FORMAL_APK_HTTPS_CLONE_OK
+INSTRUMENTATION_CODE: -1

@@ -68,10 +68,14 @@ class NativeRuntimeTest {
             writeFileSync('publish-source','replacement');let collision=false;
             try{publication.publishExclusive('publish-source','publish-target')}catch(error){collision=error.code==='EEXIST'}
             if(!collision||readFileSync('publish-target','utf8')!=='original'||!existsSync('publish-source'))throw Error('publication clobbered an existing target');
-            function run(command,args){const p=spawnSync(command,args,{encoding:'utf8'});if(p.status!==0)throw Error(command+': '+p.stderr);return p.stdout;}
+            function run(command,args){const p=spawnSync(command,args,{encoding:'utf8'});if(p.status!==0)throw Error(command+': status='+p.status+' signal='+p.signal+' '+p.stderr);return p.stdout;}
             run('git',['init']);run('git',['config','user.email','test@example.invalid']);run('git',['config','user.name','Runtime test']);
             writeFileSync('hello.txt','你好 DSH_SEARCH_OK\n');run('git',['add','hello.txt']);run('git',['commit','-m','runtime test']);
             if(!run('rg',['--json','DSH_SEARCH_OK','.']).includes('DSH_SEARCH_OK'))throw Error('search failed');
+            run('git',['config','--unset','user.name']);run('git',['config','--unset','user.email']);
+            run('git',['clone','--no-hardlinks','--','.','clone-without-identity']);
+            if(readFileSync('clone-without-identity/hello.txt','utf8')!==readFileSync('hello.txt','utf8'))throw Error('clone contents differ');
+            if(run('git',['-C','clone-without-identity','log','-1','--format=%an']).trim()!=='Runtime test')throw Error('clone changed commit authorship');
             console.log(run('git',['status','--porcelain']));console.log('NPM',run('npm',['--version']).trim());console.log('PNPM',run('pnpm',['--version']).trim());
         """.trimIndent()
         val builder = ProcessBuilder(binary("node").path, "--import", File(runtime, "android/native-loader.mjs").path, "--input-type=module", "-e", script)
