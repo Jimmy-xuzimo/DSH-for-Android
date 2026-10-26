@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var menuButton: Button
     private val io = Executors.newSingleThreadExecutor()
     private var loadedOrigin: String? = null
+    private var clearEngineHistory = true
     private var resumePath = "/"
     private var resetRoutePending = false
     private var upload: ValueCallback<Array<Uri>>? = null
@@ -126,7 +127,8 @@ class MainActivity : ComponentActivity() {
                     return true
                 }
                 override fun onPageFinished(view: WebView, url: String) {
-                    if (sameOrigin(Uri.parse(url))) {
+                    if (loadedOrigin != null && url == view.url && sameOrigin(Uri.parse(url))) {
+                        if (clearEngineHistory) { view.clearHistory(); clearEngineHistory = false }
                         view.evaluateJavascript("document.documentElement.dataset.android='true';window.dispatchEvent(new Event('resize'));", null)
                     }
                 }
@@ -200,7 +202,7 @@ class MainActivity : ComponentActivity() {
                     (()=>{const drawer=document.querySelector('[data-android-drawer-backdrop]');
                     if(drawer){drawer.click();return true;}return false;})()
                 """.trimIndent()) { handled ->
-                    if (handled != "true") { if (web.canGoBack()) web.goBack() else moveTaskToBack(true) }
+                    if (handled != "true") { if (!clearEngineHistory && web.canGoBack()) web.goBack() else moveTaskToBack(true) }
                 }
             }
         })
@@ -213,6 +215,7 @@ class MainActivity : ComponentActivity() {
                 else -> getString(R.string.engine_stopped)
             }
             if (state.phase != "running") {
+                clearEngineHistory = true
                 rememberLocation()
                 loadedOrigin = null
                 web.stopLoading()
@@ -227,6 +230,7 @@ class MainActivity : ComponentActivity() {
                         val current = EngineService.state.value
                         if (isDestroyed || isFinishing || current?.phase != "running" || current.origin != origin || current.token != state.token) return@runOnUiThread
                         loadedOrigin = origin
+                        clearEngineHistory = true
                         resetRoutePending = false
                         val path = resumePath.substringBefore('#')
                         val fragment = resumePath.substringAfter('#', "").let { if (it.isEmpty()) "" else "#$it" }

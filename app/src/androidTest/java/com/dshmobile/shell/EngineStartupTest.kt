@@ -47,6 +47,7 @@ class EngineStartupTest {
                 if (result != "true") Thread.sleep(500)
             }
             assertEquals("Upstream UI did not mount", "true", result)
+            assertNoBootHistory(activity)
             val stored = CountDownLatch(1)
             instrumentation.runOnMainSync {
                 findWebView(activity.window.decorView)!!.evaluateJavascript("localStorage.setItem('android-restart-test','preserved');window.oldEnginePage=true") { stored.countDown() }
@@ -72,6 +73,7 @@ class EngineStartupTest {
                 if (preference != "true") Thread.sleep(200)
             }
             assertEquals("Browser preferences or old page cleanup failed", "true", preference)
+            assertNoBootHistory(activity)
             java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { occupied ->
                 context.getSharedPreferences("dsh", android.content.Context.MODE_PRIVATE).edit().putInt("enginePort", occupied.localPort).commit()
                 instrumentation.runOnMainSync { EngineService.restart(context) }
@@ -89,6 +91,18 @@ class EngineStartupTest {
             context.stopService(Intent(context, EngineService::class.java))
             instrumentation.runOnMainSync { activity.finish() }
         }
+    }
+    private fun assertNoBootHistory(activity: android.app.Activity) {
+        var bootPage = true
+        repeat(50) {
+            if (!bootPage) return@repeat
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                val history = findWebView(activity.window.decorView)!!.copyBackForwardList()
+                bootPage = (0 until history.currentIndex).any { history.getItemAtIndex(it).url == "about:blank" }
+            }
+            if (bootPage) Thread.sleep(100)
+        }
+        assertFalse("Back navigation can return to an initialization page", bootPage)
     }
     private fun findWebView(view: View): WebView? {
         if (view is WebView) return view
