@@ -13,8 +13,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     env:
-      ANDROID_NDK_HOME: /usr/local/lib/android/sdk/ndk/28.2.13676358
+      ANDROID_HOME: ${{ runner.temp }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
+      ANDROID_NDK_HOME: ${{ runner.temp }}/android-sdk/ndk/28.2.13676358
       DSH_BUILD_JOBS: 4
+      DSH_CI_CLEAN_OBJECTS: 1
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -27,6 +30,11 @@ jobs:
       - run: npm install --global pnpm@11.28.5
       - run: rustup toolchain install 1.85.1 --profile minimal && rustup target add --toolchain 1.85.1 aarch64-linux-android x86_64-linux-android
       - run: sudo apt-get update && sudo apt-get install -y python3 build-essential autoconf automake libtool pkg-config unzip
+      - uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: 15859902
+          packages: platform-tools emulator
+      - run: sudo chmod 666 /dev/kvm
       - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'
       - uses: actions/cache@v6
         with:

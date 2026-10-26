@@ -24,6 +24,14 @@ for abi in x86_64 arm64-v8a; do
   DSH_NATIVE_BUILD="$build/tools" bash "$root/scripts/build-tools.sh" "$abi" "$ndk" "$build/native/$abi" "$downloads"
   bash "$root/scripts/build-addons.sh" "$abi" "$ndk" "$source" "$build/upstream" "$build/native/$abi"
   DSH_SEARCH_BUILD="$build/search" bash "$root/scripts/build-search.sh" "$abi" "$ndk" "$build/native/$abi" "$downloads"
+  if [ "${DSH_CI_CLEAN_OBJECTS:-0}" = 1 ]; then
+    # APK artifacts and N-API modules are already copied. Keep source/npm and
+    # licenses, but release V8's large intermediates on hosted runners.
+    case "$(realpath -m "$source/out")" in
+      "$build"/node-*/out) rm -rf -- "$source/out" ;;
+      *) echo 'Refusing to clean outside the managed Node build' >&2; exit 1 ;;
+    esac
+  fi
 done
 staging="$build/staging-$(date +%s)-$$"
 node "$root/scripts/stage-runtime.mjs" "$build/upstream" "$staging"
