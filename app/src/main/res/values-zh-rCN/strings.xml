@@ -29,4 +29,5 @@
     <string name="update_webview">请先更新 Android System WebView（Chromium 113 或更新版本）再运行 DSH 界面。安卓系统与 WebView 分别更新。</string>
     <string name="update">更新 WebView</string>
     <string name="restart_restricted">安卓限制了后台重启。请打开本应用，从菜单选择启动。</string>
+    <string name="port_busy">原本的本地端口被占用。请重启引擎以分配新端口。</string>
 </resources>

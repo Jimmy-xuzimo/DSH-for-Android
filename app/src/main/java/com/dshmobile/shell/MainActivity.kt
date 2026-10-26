@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
     private val io = Executors.newSingleThreadExecutor()
     private var loadedOrigin: String? = null
     private var resumePath = "/"
+    private var resetRoutePending = false
     private var upload: ValueCallback<Array<Uri>>? = null
     private data class Download(val id: String, val file: File, val name: String, var size: Long = 0, var ready: Boolean = false)
     private var download: Download? = null
@@ -63,7 +64,7 @@ class MainActivity : ComponentActivity() {
         upload?.onReceiveValue(uris.takeIf { it.isNotEmpty() }?.toTypedArray()); upload = null
     }
     private val importProject = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) background { WorkspaceStore(this).importZip(uri); restart() }
+        if (uri != null) background { WorkspaceStore(this).importZip(uri); restart(true) }
     }
     private var exporting: File? = null
     private val exportProject = registerForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -211,19 +212,28 @@ class MainActivity : ComponentActivity() {
                 "error" -> state.message
                 else -> getString(R.string.engine_stopped)
             }
+            if (state.phase != "running") {
+                rememberLocation()
+                loadedOrigin = null
+                web.stopLoading()
+                if (web.url != "about:blank") web.loadUrl("about:blank")
+                CookieManager.getInstance().removeAllCookies(null)
+            }
             if (state.phase == "running" && state.origin != loadedOrigin) {
                 val origin = requireNotNull(state.origin)
                 configureDownloads(origin)
                 CookieManager.getInstance().setCookie(origin, "dsh_android=${state.token}; Path=/; HttpOnly; SameSite=Strict") {
                     runOnUiThread {
+                        val current = EngineService.state.value
+                        if (isDestroyed || isFinishing || current?.phase != "running" || current.origin != origin || current.token != state.token) return@runOnUiThread
                         loadedOrigin = origin
+                        resetRoutePending = false
                         val path = resumePath.substringBefore('#')
                         val fragment = resumePath.substringAfter('#', "").let { if (it.isEmpty()) "" else "#$it" }
                         web.loadUrl("$origin$path?token=${state.token}$fragment")
                     }
                 }
             }
-            if (state.phase == "stopped" || state.phase == "error") loadedOrigin = null
         }
         if (getSharedPreferences("dsh", MODE_PRIVATE).getBoolean("engineRequested", true) && EngineService.state.value?.phase == "stopped") startEngine()
     }
@@ -268,10 +278,15 @@ class MainActivity : ComponentActivity() {
             return
         }
         if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        startForegroundService(Intent(this, EngineService::class.java))
+        getSharedPreferences("dsh", MODE_PRIVATE).edit().putBoolean("engineRequested", true).apply()
+        if (EngineService.state.value?.phase in setOf("stopping", "error")) EngineService.restart(applicationContext)
+        else startForegroundService(Intent(this, EngineService::class.java))
     }
-    private fun restart() {
-        runOnUiThread { EngineService.restart(applicationContext) }
+    private fun restart(resetRoute: Boolean = false) {
+        runOnUiThread {
+            if (resetRoute) { resumePath = "/"; resetRoutePending = true }
+            EngineService.restart(applicationContext)
+        }
     }
     private fun openMenu(anchor: View) {
         PopupMenu(this, anchor).apply {
@@ -282,13 +297,13 @@ class MainActivity : ComponentActivity() {
                 val field = EditText(this@MainActivity).apply { hint = getString(R.string.project_name); setSingleLine() }
                 AlertDialog.Builder(this@MainActivity).setTitle(R.string.new_project).setView(field)
                     .setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.done) { _, _ ->
-                        background { val store = WorkspaceStore(this@MainActivity); store.select(store.create(field.text.toString().trim())); restart() }
+                        background { val store = WorkspaceStore(this@MainActivity); store.select(store.create(field.text.toString().trim())); restart(true) }
                     }.show()
                 true
             }
             WorkspaceStore(this@MainActivity).list().forEach { project ->
                 menu.add("↳ ${project.name}").setOnMenuItemClickListener {
-                    WorkspaceStore(this@MainActivity).select(project); restart(); true
+                    WorkspaceStore(this@MainActivity).select(project); restart(true); true
                 }
             }
             menu.add(getString(R.string.clone_project)).setOnMenuItemClickListener {
@@ -298,7 +313,7 @@ class MainActivity : ComponentActivity() {
                 fields.addView(address); fields.addView(name)
                 AlertDialog.Builder(this@MainActivity).setTitle(R.string.clone_project).setView(fields)
                     .setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.done) { _, _ ->
-                        background { WorkspaceStore(this@MainActivity).cloneRepository(address.text.toString().trim(), name.text.toString().trim()); restart() }
+                        background { WorkspaceStore(this@MainActivity).cloneRepository(address.text.toString().trim(), name.text.toString().trim()); restart(true) }
                     }.show()
                 true
             }
@@ -346,11 +361,17 @@ class MainActivity : ComponentActivity() {
         }
     }
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
-    override fun onSaveInstanceState(outState: Bundle) {
-        web.url?.let { address ->
-            val uri = Uri.parse(address)
-            if (sameOrigin(uri)) outState.putString("webPath", (uri.encodedPath ?: "/") + (uri.encodedFragment?.let { "#$it" } ?: ""))
+    private fun rememberLocation() {
+        if (resetRoutePending) return
+        val origin = loadedOrigin?.let(Uri::parse) ?: return
+        val uri = web.url?.let(Uri::parse) ?: return
+        if (uri.scheme == origin.scheme && uri.host == origin.host && uri.port == origin.port) {
+            resumePath = (uri.encodedPath ?: "/") + (uri.encodedFragment?.let { "#$it" } ?: "")
         }
+    }
+    override fun onSaveInstanceState(outState: Bundle) {
+        rememberLocation()
+        outState.putString("webPath", resumePath)
         exporting?.let { outState.putString("exportingProject", it.name) }
         download?.takeIf { it.ready }?.let {
             outState.putString("downloadId", it.id); outState.putString("downloadFile", it.file.name); outState.putString("downloadName", it.name)

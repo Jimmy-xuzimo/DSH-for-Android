@@ -13,3 +13,6 @@ app/src/main/assets/runtime-manifest.json
 *.log
 .env*
 !*.example
+
+__pycache__/
+*.pyc

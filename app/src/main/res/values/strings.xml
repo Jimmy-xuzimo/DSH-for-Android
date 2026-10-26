@@ -29,4 +29,5 @@
     <string name="update_webview">Update Android System WebView (Chromium 113 or newer) to run the DSH interface. Android version and WebView version are updated independently.</string>
     <string name="update">Update WebView</string>
     <string name="restart_restricted">Android restricted the background restart. Open this app and choose Start from its menu.</string>
+    <string name="port_busy">The saved local port is occupied. Restart the engine to allocate a new port.</string>
 </resources>

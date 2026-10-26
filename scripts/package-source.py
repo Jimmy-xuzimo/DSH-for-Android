@@ -4,6 +4,7 @@ import argparse
 import json
 from pathlib import Path
 import tarfile
+import subprocess
 
 p = argparse.ArgumentParser()
 p.add_argument('destination', type=Path)
@@ -14,11 +15,16 @@ root = Path(__file__).resolve().parent.parent
 a.destination.mkdir(parents=True, exist_ok=True)
 excluded = {'.git', '.gradle', 'build', 'downloads', 'staging', 'jniLibs', 'search'}
 def sources():
-    for path in sorted(root.rglob('*')):
+    if (root / '.git').exists():
+        names = subprocess.run(['git', '-C', str(root), 'ls-files', '-z'], check=True, capture_output=True).stdout.decode('utf-8').split('\0')
+        candidates = (root / name for name in names if name)
+    else:
+        candidates = root.rglob('*')
+    for path in sorted(candidates):
         relative = path.relative_to(root)
-        if any(part in excluded for part in relative.parts) or not path.is_file(): continue
+        if any(part in excluded or part.lower().startswith('.env') for part in relative.parts) or not path.is_file() or path.is_symlink(): continue
         if relative.as_posix() in {'app/src/main/assets/runtime.zip', 'app/src/main/assets/runtime-manifest.json'}: continue
-        if path.suffix.lower() in {'.apk', '.p12', '.jks', '.keystore', '.log'} or path.name == 'local.properties': continue
+        if path.suffix.lower() in {'.apk', '.p12', '.pfx', '.jks', '.keystore', '.pem', '.key', '.dpapi', '.log'} or path.name == 'local.properties': continue
         yield path, Path('dsh-android') / relative
 with tarfile.open(a.destination / 'dsh-android-source.tar.gz', 'w:gz') as archive:
     for path, name in sources(): archive.add(path, arcname=str(name), recursive=False)

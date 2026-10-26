@@ -18,23 +18,26 @@ import java.util.concurrent.TimeUnit
 data class EngineState(val phase: String = "stopped", val origin: String? = null, val token: String? = null, val message: String? = null)
 
 class EngineService : Service() {
-    private val worker = Executors.newSingleThreadExecutor()
+    private var task: java.util.concurrent.Future<*>? = null
+    private var active = false
     private var process: Process? = null
     @Volatile private var stopping = false
     override fun onBind(intent: Intent?): IBinder? = null
     override fun onCreate() {
         super.onCreate()
+        owner = this
         getSystemService(NotificationManager::class.java).createNotificationChannel(
             NotificationChannel("engine", getString(R.string.app_name), NotificationManager.IMPORTANCE_LOW))
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == STOP) { getSharedPreferences("dsh", MODE_PRIVATE).edit().putBoolean("engineRequested", false).apply(); stopSelf(); return START_NOT_STICKY }
-        if (state.value?.phase in setOf("starting", "running")) return START_NOT_STICKY
+        if (intent?.action == STOP) { stop(this); return START_NOT_STICKY }
+        if (active) return START_NOT_STICKY
+        active = true
         stopping = false
         getSharedPreferences("dsh", MODE_PRIVATE).edit().putBoolean("engineRequested", true).apply()
         startForeground(1, notification())
         state.value = EngineState("starting")
-        worker.submit { startEngine() }
+        task = engineWorker.submit { startEngine() }
         return START_NOT_STICKY
     }
     private fun startEngine() {
@@ -46,12 +49,14 @@ class EngineService : Service() {
             check(node.canExecute()) { getString(R.string.missing_runtime) }
             val data = File(filesDir, "home").apply { mkdirs() }
             val project = WorkspaceStore(this).current()
+            val preferences = getSharedPreferences("dsh", MODE_PRIVATE)
+            val requestedPort = preferences.getInt("enginePort", 0).takeIf { it in 1024..65535 } ?: 0
             val token = ByteArray(32).also { SecureRandom().nextBytes(it) }.joinToString("") { "%02x".format(it) }
             val command = listOf(node.path, "--expose-internals", "--import", File(runtime, "android/preload.mjs").path,
                 File(runtime, "node_modules/@deepseek-ai/dsh/lib/bin.js").path,
                 "--profile", "web",
                 "--patch", File(runtime, "android/cordis.patch.yml").path,
-                "--no-open", "--host", "127.0.0.1", "--port", "0")
+                "--no-open", "--host", "127.0.0.1", "--port", requestedPort.toString())
             val builder = ProcessBuilder(command).directory(project).redirectErrorStream(true)
             builder.environment().apply {
                 put("HOME", data.path); put("DSH_HOME", File(data, ".dsh").path)
@@ -68,19 +73,21 @@ class EngineService : Service() {
                 put("CURL_CA_BUNDLE", File(runtime, "android/cacert.pem").path)
                 put("GIT_EXEC_PATH", File(runtime, "bin").path)
             }
+            if (stopping) return
             val child = builder.start()
             synchronized(this) {
-                if (stopping) { child.destroyForcibly(); return }
                 process = child
+                if (stopping) { child.destroy(); return }
             }
             val log = File(cacheDir, "engine.log")
             if (log.length() > 2 * 1024 * 1024) log.writeText("")
             val started = System.nanoTime()
+            var portBusy = false
             val watchdog = Thread {
               try {
                 while (!stopping && child.isAlive && state.value?.phase == "starting") {
                     if (System.nanoTime() - started > TimeUnit.SECONDS.toNanos(90)) {
-                        state.postValue(EngineState("error", message = "Engine startup timed out"))
+                        publish(EngineState("error", message = "Engine startup timed out"))
                         child.destroyForcibly()
                         break
                     }
@@ -94,8 +101,12 @@ class EngineService : Service() {
                         val port = line.substringAfter(' ').toIntOrNull()
                         require(port != null && port in 1..65535)
                         val origin = "http://127.0.0.1:$port"
-                        if (healthy(origin, token)) state.postValue(EngineState("running", origin, token))
+                        if (healthy(origin, token) && !stopping) {
+                            preferences.edit().putInt("enginePort", port).apply()
+                            publish(EngineState("running", origin, token))
+                        }
                     } else {
+                        if (line.contains("EADDRINUSE")) portBusy = true
                         val redacted = line.replace(token, "[redacted]")
                             .replace(Regex("(?i)(bearer\\s+|api[_-]?key[=: ]+)[^\\s,]+"), "$1[redacted]")
                         if (log.length() < 2 * 1024 * 1024) log.appendText(redacted.take(8192) + "\n")
@@ -104,14 +115,30 @@ class EngineService : Service() {
             }
             val exit = child.waitFor()
             watchdog.interrupt()
-            if (!stopping && state.value?.phase != "error") state.postValue(EngineState("error", message = "Engine exited ($exit). See app diagnostics."))
+            if (!stopping && state.value?.phase != "error") {
+                if (portBusy) preferences.edit().remove("enginePort").apply()
+                publish(EngineState("error", message = if (portBusy) getString(R.string.port_busy) else "Engine exited ($exit). See app diagnostics."))
+            }
         } catch (error: Exception) {
-            if (!stopping) state.postValue(EngineState("error", message = error.message ?: error.javaClass.simpleName))
+            if (!stopping) publish(EngineState("error", message = error.message ?: error.javaClass.simpleName))
         } finally {
-            synchronized(this) { process?.destroy(); process = null }
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
+            val child = synchronized(this) { process.also { process = null } }
+            if (child != null) terminate(child)
+            main.post { if (owner === this) { stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() } }
         }
+    }
+    private fun publish(next: EngineState) {
+        main.post { if (owner === this && !stopping) state.value = next }
+    }
+    private fun terminate(child: Process) {
+        var interrupted = Thread.interrupted()
+        child.destroy()
+        try { if (!child.waitFor(5, TimeUnit.SECONDS)) child.destroyForcibly() }
+        catch (_: InterruptedException) { interrupted = true; child.destroyForcibly() }
+        while (child.isAlive) {
+            try { child.waitFor() } catch (_: InterruptedException) { interrupted = true }
+        }
+        if (interrupted) Thread.currentThread().interrupt()
     }
     private fun healthy(origin: String, token: String): Boolean {
         var diagnostic = "no response"
@@ -143,25 +170,36 @@ class EngineService : Service() {
     }
     override fun onDestroy() {
         stopping = true
+        if (owner === this && state.value?.phase != "error") state.value = EngineState("stopping")
         synchronized(this) { process?.destroy() }
-        worker.shutdown()
-        Thread {
-            if (!worker.awaitTermination(5, TimeUnit.SECONDS)) {
-                synchronized(this) { process?.destroyForcibly() }
-                worker.shutdownNow()
+        task?.cancel(true)
+        val child = synchronized(this) { process }
+        if (child != null) Thread { terminate(child) }.apply { isDaemon = true; start() }
+        // A process-wide serial queue prevents a replacement Service from
+        // starting its Node before the previous owner's process has exited.
+        engineWorker.execute {
+            main.post {
+                if (owner === this) {
+                    if (state.value?.phase != "error") state.value = EngineState()
+                    owner = null
+                }
             }
-            if (state.value?.phase != "error") state.postValue(EngineState())
-        }.start()
+        }
         super.onDestroy()
     }
     companion object {
         const val STOP = "com.dshmobile.shell.STOP"
         val state = MutableLiveData(EngineState())
+        private val engineWorker = Executors.newSingleThreadExecutor()
+        private val main = android.os.Handler(android.os.Looper.getMainLooper())
+        @Volatile private var owner: EngineService? = null
         private var restartObserver: androidx.lifecycle.Observer<EngineState>? = null
 
         fun stop(context: android.content.Context) {
+            restartObserver?.let { state.removeObserver(it) }; restartObserver = null
             context.getSharedPreferences("dsh", MODE_PRIVATE).edit().putBoolean("engineRequested", false).apply()
-            context.stopService(Intent(context, EngineService::class.java))
+            state.value = EngineState("stopping")
+            if (!context.stopService(Intent(context, EngineService::class.java)) && owner == null) state.value = EngineState()
         }
 
         /** Called on main. Restart ownership survives Activity recreation. */
