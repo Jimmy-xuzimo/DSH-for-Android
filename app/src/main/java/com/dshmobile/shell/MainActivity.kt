@@ -122,7 +122,7 @@ class MainActivity : ComponentActivity() {
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     if (sameOrigin(request.url)) return false
                     if (request.isForMainFrame && request.hasGesture() && request.url.scheme in setOf("http", "https")) {
-                        startActivity(Intent(Intent.ACTION_VIEW, request.url))
+                        openExternal(Intent(Intent.ACTION_VIEW, request.url))
                     }
                     return true
                 }
@@ -273,11 +273,13 @@ class MainActivity : ComponentActivity() {
         }
     }
     private fun startEngine() {
-        val webViewVersion = WebViewCompat.getCurrentWebViewPackage(this)?.versionName?.substringBefore('.')?.toIntOrNull() ?: 0
+        val webViewVersion = WebEngineSupport.chromiumMajor(web.settings.userAgentString) ?: 0
         if (webViewVersion < 113) {
             AlertDialog.Builder(this).setMessage(R.string.update_webview)
                 .setPositiveButton(R.string.update) { _, _ ->
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.google.android.webview")))
+                    val provider = WebViewCompat.getCurrentWebViewPackage(this)?.packageName
+                    openExternal(if (provider != null) Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$provider"))
+                        else Intent(android.provider.Settings.ACTION_APPLICATION_SETTINGS))
                 }.setNegativeButton(android.R.string.cancel, null).show()
             return
         }
@@ -285,6 +287,14 @@ class MainActivity : ComponentActivity() {
         getSharedPreferences("dsh", MODE_PRIVATE).edit().putBoolean("engineRequested", true).apply()
         if (EngineService.state.value?.phase in setOf("stopping", "error")) EngineService.restart(applicationContext)
         else startForegroundService(Intent(this, EngineService::class.java))
+    }
+    private fun openExternal(intent: Intent) {
+        try { startActivity(intent) }
+        catch (_: android.content.ActivityNotFoundException) {
+            AlertDialog.Builder(this).setMessage(R.string.external_unavailable).setPositiveButton(android.R.string.ok, null).show()
+        } catch (_: SecurityException) {
+            AlertDialog.Builder(this).setMessage(R.string.external_unavailable).setPositiveButton(android.R.string.ok, null).show()
+        }
     }
     private fun restart(resetRoute: Boolean = false) {
         runOnUiThread {

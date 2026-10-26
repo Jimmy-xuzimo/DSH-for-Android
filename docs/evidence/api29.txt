@@ -4,7 +4,7 @@ com.dshmobile.shell.ExtensionRuntimeTest:.
 com.dshmobile.shell.NativeRuntimeTest:.....
 com.dshmobile.shell.WorkspaceDataTest:.
 
-Time: 19.856
+Time: 19.006
 
 OK (8 tests)
 

@@ -30,4 +30,5 @@
     <string name="update">Update WebView</string>
     <string name="restart_restricted">Android restricted the background restart. Open this app and choose Start from its menu.</string>
     <string name="port_busy">The saved local port is occupied. Restart the engine to allocate a new port.</string>
+    <string name="external_unavailable">No available app could open this link. Check your browser and system restrictions.</string>
 </resources>

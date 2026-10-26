@@ -7,7 +7,7 @@
 - 上游默认分支在实施开始时锁定为 `22ddee3792402c3e70ec5f86a63c3e3e895a2f60`，CLI `0.2.1-rc.3`；源码下载使用 SHA-256 校验。上游 `build:artifacts` 与 `build:check` 通过。
 - 固定 Node 24.21.0、pnpm 11.28.5、Rust 1.85.1、NDK 28.2.13676358、Gradle 9.6.0、AGP 9.4.0、Kotlin 2.4.21、JDK 25.0.3。minSdk 29，targetSdk 36。
 - 两种 ABI 的 Node、Bash、Git、curl、ripgrep、PTY、文件锁、原子发布模块、包管理器启动器和 C++ 运行库均已构建。26 个 ELF 的架构与 16 KB PT_LOAD 对齐检查通过。
-- Kotlin 编译、2 个归档策略单元测试、Debug/Release Android Lint 通过。Lint 仍有警告，未关闭发布检查。安卓依赖由 `app/gradle.lockfile` 固定，[实际依赖清单](evidence/android-dependencies.txt)。
+- Kotlin 编译、3 个单元测试（归档策略与引擎版本识别）、Debug/Release Android Lint 通过。Lint 仍有警告，未关闭发布检查。安卓依赖由 `app/gradle.lockfile` 固定，[实际依赖清单](evidence/android-dependencies.txt)。
 - 5 个 Node 测试通过：HTTP/WebSocket 认证与来源策略，凭据加密、重载、篡改与错误密钥，以及旧 WebView 兼容函数。
 - 缺少签名设置时，发布检查明确以 `Missing release signing setting: DSH_KEYSTORE` 失败，未回退至调试签名。
 
@@ -26,7 +26,7 @@
 | Android 16 / API 36 | 4 KB | 133，镜像自带 | [8 项通过](evidence/api36.txt) |
 | 额外 Android 17 / SDK 37 测试镜像 | 16 KB | 镜像自带 | [8 项通过](evidence/16kb.txt) |
 
-Android 10/12 镜像的旧 WebView 在测试前使用 Android SDK 镜像内 Google 签名的 WebView/Trichrome 133 更新。WebView 不随本应用分发。应用要求 Chromium 113 或更新版本，过旧时提示更新。
+Android 10/12 镜像的旧 WebView 在测试前使用 Android SDK 镜像内 Google 签名的 WebView/Trichrome 133 更新。WebView 不随本应用分发。兼容检查读取实际用户代理中的 Chromium 版本，不把厂商组件包版本当作引擎版本；更新入口使用当前组件的系统设置。版本格式差异通过单元测试验证，厂商真机仍待验收。应用要求 Chromium 113 或更新版本，过旧时提示更新。
 
 八个设备测试方法包含多个断言，覆盖：完整 DSH/WebView 启动、未认证请求返回 403、Keystore 包装密钥不可导出、APK 安装目录 Bash 执行、可写目录 ELF 被系统拒绝、Node 启动 Bash、中文 PTY 输入和缩放、Git 提交和 ripgrep、npm/pnpm、原子发布不覆盖已有文件、离线安装并加载/清理 JavaScript 插件、本地及 HTTP MCP 的发现和调用、ZIP 往返、凭据过滤、导入冲突与越界拒绝。MCP 使用本地夹具，不代表所有第三方服务的认证兼容性。
 

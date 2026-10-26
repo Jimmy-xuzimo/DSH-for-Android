@@ -30,4 +30,5 @@
     <string name="update">更新 WebView</string>
     <string name="restart_restricted">安卓限制了后台重启。请打开本应用，从菜单选择启动。</string>
     <string name="port_busy">原本的本地端口被占用。请重启引擎以分配新端口。</string>
+    <string name="external_unavailable">无法打开外部链接，请检查可用浏览器和系统限制。</string>
 </resources>
