@@ -121,7 +121,7 @@ class ProductExperienceTest {
             rule.waitUntil(30_000){controls().any{it.optString("kind")=="input"&&it.optBoolean("secret")} || controls().any{it.optString("label").startsWith("编辑 ")||it.optString("label").startsWith("Edit ")}}
             if(controls().none{it.optString("kind")=="input"&&it.optBoolean("secret")})click(controls().first{it.optString("label").startsWith("编辑 ")||it.optString("label").startsWith("Edit ")})
             rule.waitUntil(15_000){controls().any{it.optString("label") in setOf("API 地址","API base URL","Base URL")&&it.optString("kind")=="input"}}
-            val endpoint=controls().first{it.optString("kind")=="input"&&it.optString("label").let{label->label.contains("API")&&!label.contains("密钥")&&!label.contains("key",true)}&&!it.optBoolean("secret")}
+            val endpoint=controls().first{it.optString("kind")=="input"&&it.optString("label") in setOf("API 地址","API base URL","Base URL")&&!it.optBoolean("secret")}
             assertTrue("Effective endpoint must be filled (including a saved custom override)",endpoint.optString("value").startsWith("http"))
             fun fill(node:org.json.JSONObject,value:String) {val tag="control-${node.optString("id")}";rule.onNodeWithTag("settings-controls").performScrollToNode(hasTestTag(tag));rule.onNodeWithTag(tag).performTextReplacement(value)}
             fill(endpoint,"http://127.0.0.1:${server.localPort}/anthropic")
