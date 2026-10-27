@@ -20,7 +20,7 @@ await patch('packages/credentials/credentials-local/src/index.ts', source => {
     .replace(/writeFileAtomic\(this\.spec\.filename, (nextText|migrated),/g, 'writeFileAtomic(this.spec.filename, encryptCredentials($1),');
 });
 await copyFile(join(port, 'patches/credential-crypto.ts'), join(root, 'packages/credentials/credentials-local/src/android-crypto.ts'));
-for (const relative of ['packages/session/session-persistence-jsonl/src/index.ts', 'packages/attachment/attachment-local/src/store.ts']) {
+for (const relative of ['packages/session/session-persistence-jsonl/src/index.ts', 'packages/attachment/attachment-local/src/store.ts', 'packages/fs/fs-local/src/fsio.ts']) {
   await patch(relative, source => {
     const modified = source.replace(/(?<=import \{[^\n]*)\blink, /, '');
     if (modified === source) throw new Error(`Atomic publication contract changed: ${relative}`);
@@ -169,3 +169,5 @@ await mkdir(join(root, 'apps/web/public'), { recursive: true });
 await copyFile(join(port, 'runtime/android/mobile.css'), join(root, 'apps/web/public/android-mobile.css'));
 await copyFile(join(port, 'runtime/android/web-compat.js'), join(root, 'apps/web/public/android-compat.js'));
 console.log('Applied Android credential, subprocess and mobile patches');
+await import('./patch-mobile-ui.mjs');
+await import('./patch-product-ui.mjs');

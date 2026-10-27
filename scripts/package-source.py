@@ -16,7 +16,7 @@ a.destination.mkdir(parents=True, exist_ok=True)
 excluded = {'.git', '.gradle', 'build', 'downloads', 'staging', 'jniLibs', 'search'}
 def sources():
     if (root / '.git').exists():
-        names = subprocess.run(['git', '-C', str(root), 'ls-files', '-z'], check=True, capture_output=True).stdout.decode('utf-8').split('\0')
+        names = subprocess.run(['git', '-C', str(root), 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], check=True, capture_output=True).stdout.decode('utf-8').split('\0')
         candidates = (root / name for name in names if name)
     else:
         candidates = root.rglob('*')

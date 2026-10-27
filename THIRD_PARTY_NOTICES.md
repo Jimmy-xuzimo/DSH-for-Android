@@ -623,3 +623,14 @@ source and vendored Rust crates with their individual license texts.
 | yocto-queue | 1.2.2 | MIT |
 | yoctocolors | 2.1.2 | MIT |
 | zod | 4.4.3 | MIT |
+
+## Noto Sans SC
+
+Bundled unmodified variable TTF from google/fonts commit e7db6ca603fd4862010383ff17ffd6cc4ffac1c0, ofl/notosanssc/NotoSansSC[wght].ttf.
+Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
+SIL Open Font License 1.1. Full license: licenses/fonts/NotoSansSC-OFL.txt.
+Commercial embedding is permitted under that license. The font is not sold by itself.
+
+## Google Material Color Utilities (development tool)
+
+Version 0.3.0, Apache-2.0, Copyright Google LLC. Used to generate the checked-in light/dark color schemes; not embedded as a runtime JavaScript dependency in the APK. Source: https://github.com/material-foundation/material-color-utilities .

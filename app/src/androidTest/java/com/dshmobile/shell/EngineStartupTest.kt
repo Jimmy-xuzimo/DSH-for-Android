@@ -39,7 +39,7 @@ class EngineStartupTest {
                 instrumentation.runOnMainSync {
                     val web = findWebView(activity.window.decorView)
                     assertNotNull(web)
-                    web!!.evaluateJavascript("Boolean(document.getElementById('root')?.childElementCount && document.querySelector('button'))") {
+                    web!!.evaluateJavascript("Boolean(document.getElementById('root')?.childElementCount && document.querySelector('button') && document.documentElement.getBoundingClientRect().height > 100)") {
                         result = it; ready.countDown()
                     }
                 }

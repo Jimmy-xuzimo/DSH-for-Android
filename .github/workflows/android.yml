@@ -35,7 +35,7 @@ jobs:
           cmdline-tools-version: 15859902
           packages: platform-tools emulator
       - run: sudo chmod 666 /dev/kvm
-      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'
+      - run: sdkmanager 'platforms;android-37.2' 'build-tools;36.0.0' 'ndk;28.2.13676358'
       - uses: actions/cache@v6
         with:
           path: runtime/downloads
@@ -59,6 +59,3 @@ jobs:
             app/build/outputs/androidTest-results/
             app/src/main/assets/runtime-manifest.json
           retention-days: 14
-
-
-

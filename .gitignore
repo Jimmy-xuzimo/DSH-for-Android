@@ -1,9 +1,11 @@
 .gradle/
+node_modules/
 **/build/
 local.properties
 runtime/staging/
 runtime/downloads/
 runtime/build/
+runtime/candidates/
 app/src/main/jniLibs/
 app/src/main/assets/runtime.zip
 app/src/main/assets/runtime-manifest.json

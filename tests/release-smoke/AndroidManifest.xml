@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dsh.qa.settings">
+  <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36" />
+  <application android:label="DSH signed settings verification" />
+  <instrumentation android:name="dsh.qa.settings.Smoke" android:targetPackage="com.dshmobile.shell" />
+</manifest>

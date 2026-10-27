@@ -1,11 +1,11 @@
-name: Signed preview release
+name: Signed release
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Preview version tag (must match app version)
+        description: Version tag (must match app version)
         required: true
-        default: v1.0.0-preview.1
+        default: v1.0.0
 permissions:
   contents: write
 jobs:
@@ -48,7 +48,7 @@ jobs:
           cmdline-tools-version: 15859902
           packages: platform-tools emulator
       - run: sudo chmod 666 /dev/kvm
-      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'
+      - run: sdkmanager 'platforms;android-37.2' 'build-tools;36.0.0' 'ndk;28.2.13676358'
       - run: npm test && bash scripts/build-runtime.sh
       - name: Verify complete runtime on Android
         run: chmod +x gradlew && ./gradlew :app:assembleX64Debug :app:assembleX64DebugAndroidTest
@@ -77,23 +77,19 @@ jobs:
           cp app/build/outputs/apk/x64/release/*.apk release-assets/dsh-android-x86_64.apk
           cp upstream.lock.json THIRD_PARTY_NOTICES.md docs/VALIDATION.md release-assets/
           (cd release-assets && sha256sum *.apk *.tar.gz *.json *.md > SHA256SUMS)
-      - name: Publish verified preview
+      - name: Publish verified release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
           test "$RELEASE_TAG" = "v$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')"
-          gh release create "$RELEASE_TAG" release-assets/* --target "$GITHUB_SHA" --prerelease --title "DSH for Android $RELEASE_TAG" --notes-file docs/RELEASE.md
+          gh release create "$RELEASE_TAG" release-assets/* --target "$GITHUB_SHA" --title "DSH for Android $RELEASE_TAG" --notes-file docs/RELEASE.md
       - uses: actions/upload-artifact@v7
         with:
-          name: signed-preview-review
+          name: signed-release-review
           path: |
             app/build/outputs/apk/*/release/*.apk
             SHA256SUMS
             app/src/main/assets/runtime-manifest.json
       - if: always()
         run: rm -f "$RUNNER_TEMP/dsh-release.jks"
-
-
-
-

@@ -24,6 +24,7 @@ class RuntimeInstaller(private val context: Context) {
             val extracted = mutableSetOf<String>()
             var total = 0L
             val maximum = manifest.getLong("unpackedBytes")
+            val buffer = ByteArray(65536)
             context.assets.open("runtime.zip").use { source ->
                 ZipInputStream(source).use { archive ->
                     while (true) {
@@ -35,7 +36,6 @@ class RuntimeInstaller(private val context: Context) {
                         check(target.parentFile!!.isDirectory || target.parentFile!!.mkdirs())
                         val digest = MessageDigest.getInstance("SHA-256")
                         target.outputStream().use { output ->
-                            val buffer = ByteArray(65536)
                             while (true) {
                                 val count = archive.read(buffer)
                                 if (count < 0) break

@@ -1,37 +1,30 @@
-:root { color-scheme: light dark; -webkit-text-size-adjust: 100%; }
-html, body, #root { min-width: 0 !important; width: 100%; min-height: 100%; }
-body { margin: 0; overscroll-behavior-y: none; }
-* { -webkit-tap-highlight-color: transparent; }
-textarea, input, [contenteditable="true"] { scroll-margin-bottom: 24px; }
-pre, table { max-width: 100%; }
-pre { overflow-x: auto; }
+/* Content adapter only. Navigation, forms, sheets and preferences are Compose Material 3. */
+html, body, #root { min-width: 0; width: 100%; height: 100%; }
+body { margin: 0; overscroll-behavior-y: none; font-family: Roboto, 'Noto Sans', sans-serif; }
+* { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+[hidden] { display: none !important; }
+[data-material-settings-controller] { opacity: 0 !important; pointer-events: none !important; }
+button { touch-action: manipulation; }
+html[data-android-reduce-motion=true] *, html[data-android-reduce-motion=true] *::before, html[data-android-reduce-motion=true] *::after { animation-duration: 0s !important; animation-delay: 0s !important; transition-duration: 0s !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
+html[data-android-font=noto] body { font-family: 'DSH Noto', sans-serif; }
+html[data-android-font=mono] body { font-family: monospace; }
+@media (prefers-reduced-motion: no-preference) {
+ html:not([data-android-reduce-motion=true]) [data-composer-card] { transition: border-color 200ms cubic-bezier(.2,0,0,1), background-color 250ms cubic-bezier(.2,0,0,1); }
+}
+button:focus-visible, input:focus-visible { outline: 2px solid var(--md-sys-color-primary, #6750a4); outline-offset: 2px; }
+[data-android-frame] > [data-android-sidebar] { border: 0; overflow: visible; }
+[data-composer-seat] { padding-inline: 16px !important; }
+[data-composer-card] { border-radius: 16px !important; border: 1px solid var(--md-sys-color-outline-variant, #cac4d0) !important; box-shadow: none !important; }
+[data-composer-input] { line-height: 1.5; }
+[role=menuitem] { min-height: 48px; }
+button[role=switch] { width: 52px; height: 32px; min-height: 0; padding: 4px; border-radius: 16px; border: 2px solid var(--md-sys-color-outline, #79747e); background: var(--md-sys-color-surface-container-highest, #e6e0e9); }
+button[role=switch]>span { width: 20px; height: 20px; border-radius: 50%; background: var(--md-sys-color-outline, #79747e) !important; transition: transform 200ms; }
+button[role=switch][aria-checked=true] { border-color: transparent; background: var(--md-sys-color-primary, #6750a4); }
+button[role=switch][aria-checked=true]>span { transform: translateX(20px); background: var(--md-sys-color-on-primary, #fff) !important; }
+button[role=switch]::after { content: ''; position: absolute; inset: -8px -2px; }
+.material-session-manager { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; background: var(--dsw-alias-bg-base); padding: 16px; }
+.material-session-manager > div:first-of-type { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.material-session-manager > button { min-height: 48px; border: 0; background: transparent; color: var(--md-sys-color-primary, #6750a4); text-align: start; }
+pre { overflow-x: auto; max-width: 100%; }
 .xterm { touch-action: pan-y; }
-@media (pointer: coarse) {
-  button, [role="button"] { min-height: 44px; }
-  input, textarea { font-size: max(16px, 1em); }
-  [role="menuitem"] { min-height: 44px; }
-}
-@media (max-width: 599px) {
-  html { overflow-x: hidden; }
-  dialog, [role="dialog"] { max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); }
-}
-[data-android-compact] {
-  grid-template-columns: 56px minmax(0, 1fr) 0px !important;
-}
-[data-android-compact]:not([data-sidebar-collapsed]) > [data-android-sidebar] {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: min(320px, calc(100% - 48px));
-  z-index: 41;
-  box-shadow: 8px 0 24px #0003;
-}
-[data-android-drawer-backdrop] {
-  position: absolute;
-  inset: 0;
-  border: 0;
-  background: #0006;
-  z-index: 40;
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }

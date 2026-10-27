@@ -12,7 +12,7 @@ if [ ! -d "$build/upstream" ]; then
   tar -xzf "$downloads/upstream.tar.gz" --strip-components=1 -C "$build/upstream"
 fi
 node "$root/scripts/patch-upstream.mjs" "$build/upstream"
-export DSH_CLIENT_COMMIT_HASH=22ddee3792402c3e70ec5f86a63c3e3e895a2f60
+export DSH_CLIENT_COMMIT_HASH="$(node -p 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).commit' "$root/upstream.lock.json")"
 cd "$build/upstream"
 pnpm install --frozen-lockfile
 pnpm run build:artifacts

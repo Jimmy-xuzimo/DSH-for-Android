@@ -2,7 +2,6 @@ package com.dshmobile.shell
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.AlertDialog
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
@@ -17,13 +16,12 @@ import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
-import android.widget.PopupMenu
-import android.widget.ProgressBar
-import android.widget.TextView
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.ViewCompat
@@ -31,6 +29,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import androidx.compose.ui.graphics.toArgb
 import org.json.JSONObject
 import java.io.File
 import java.net.URL
@@ -38,9 +37,24 @@ import java.util.concurrent.Executors
 
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
-    private lateinit var status: TextView
-    private lateinit var progress: ProgressBar
-    private lateinit var menuButton: Button
+    private var engineUi by mutableStateOf(EngineState())
+    private var preferencesUi by mutableStateOf(NativePreferences())
+    private var sessionsUi by mutableStateOf(emptyList<NativeSession>())
+    private var panelsUi by mutableStateOf(emptyList<NativePanel>())
+    private var projectsUi by mutableStateOf(emptyList<String>())
+    private var menuUi by mutableStateOf<NativeMenu?>(null)
+    private var promptUi by mutableStateOf<NativePrompt?>(null)
+    private var formUi by mutableStateOf<NativeProjectForm?>(null)
+    private var nativePreferencesRequest by mutableStateOf(0)
+    private var commandsUi by mutableStateOf(false)
+    internal var settingsUi by mutableStateOf(JSONObject())
+        private set
+    internal var preferencesReady by mutableStateOf(false)
+        private set
+    private var navigationReady = false
+    private var settingsDocumentScript: androidx.webkit.ScriptHandler? = null
+    private val pendingCommands = ArrayDeque<JSONObject>()
+    private var keyboardVisible = false
     private val io = Executors.newSingleThreadExecutor()
     private var loadedOrigin: String? = null
     private var clearEngineHistory = true
@@ -85,28 +99,13 @@ class MainActivity : ComponentActivity() {
             val file = File(cacheDir, name)
             if (file.isFile) download = Download(requireNotNull(savedInstanceState.getString("downloadId")), file, savedInstanceState.getString("downloadName") ?: "download", file.length(), true)
         }
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        val layout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        ViewCompat.setOnApplyWindowInsetsListener(layout) { view, insets ->
-            val safe = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
-            val keyboard = insets.getInsets(WindowInsetsCompat.Type.ime())
-            view.setPadding(safe.left, safe.top, safe.right, maxOf(safe.bottom, keyboard.bottom))
-            insets
-        }
-        val toolbar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = android.view.Gravity.CENTER_VERTICAL }
-        menuButton = Button(this).apply {
-            text = getString(R.string.workspaces)
-            minHeight = dp(48)
-            contentDescription = getString(R.string.workspaces)
-            setOnClickListener { openMenu(this) }
-        }
-        status = TextView(this).apply { textSize = 14f; setPadding(dp(8), 0, dp(8), 0) }
-        toolbar.addView(menuButton)
-        toolbar.addView(status, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-        layout.addView(toolbar, LinearLayout.LayoutParams(-1, -2))
-        progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { isIndeterminate = true }
-        layout.addView(progress, LinearLayout.LayoutParams(-1, dp(3)))
+        enableEdgeToEdge()
+        val appearance = getSharedPreferences("appearance", MODE_PRIVATE)
+        preferencesUi = preferencesUi.copy(palette=appearance.getString("palette","dynamic")!!,font=appearance.getString("font","system")!!,animations=appearance.getBoolean("animations",true))
         web = WebView(this).apply {
+            // WebView treats WRAP_CONTENT as an indefinite CSS viewport even
+            // when Compose measures the AndroidView with an exact height.
+            layoutParams = android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT)
             setBackgroundColor(Color.TRANSPARENT)
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
@@ -119,6 +118,12 @@ class MainActivity : ComponentActivity() {
             settings.textZoom = (resources.configuration.fontScale * 100).toInt().coerceIn(75, 200)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
             webViewClient = object : WebViewClient() {
+                override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): android.webkit.WebResourceResponse? {
+                    if (sameOrigin(request.url) && request.url.path == "/android-font/noto-sans-sc.ttf") {
+                        return android.webkit.WebResourceResponse("font/ttf", null, bundledFont())
+                    }
+                    return null
+                }
                 override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                     if (sameOrigin(request.url)) return false
                     if (request.isForMainFrame && request.hasGesture() && request.url.scheme in setOf("http", "https")) {
@@ -127,9 +132,11 @@ class MainActivity : ComponentActivity() {
                     return true
                 }
                 override fun onPageFinished(view: WebView, url: String) {
-                    if (loadedOrigin != null && url == view.url && sameOrigin(Uri.parse(url))) {
+                    if (loadedOrigin != null && sameOrigin(Uri.parse(url)) && sameOrigin(Uri.parse(view.url.orEmpty()))) {
+                        view.evaluateJavascript(assets.open("settings-bridge.js").bufferedReader().use { it.readText() }, null)
                         if (clearEngineHistory) { view.clearHistory(); clearEngineHistory = false }
-                        view.evaluateJavascript("document.documentElement.dataset.android='true';window.dispatchEvent(new Event('resize'));", null)
+                        view.evaluateJavascript("document.documentElement.dataset.android='true';document.documentElement.dataset.androidIme='$keyboardVisible';window.dispatchEvent(new Event('resize'));", null)
+                        applyAppearance()
                     }
                 }
             }
@@ -194,27 +201,42 @@ class MainActivity : ComponentActivity() {
             }
         }
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
-        layout.addView(web, LinearLayout.LayoutParams(-1, 0, 1f))
-        setContentView(layout)
+        projectsUi = WorkspaceStore(this).list().map { it.name }
+        commandsUi = getSharedPreferences("dsh", MODE_PRIVATE).getBoolean("commands", false)
+        setContent {
+            DshMaterialShell(web, engineUi, preferencesUi, sessionsUi, panelsUi, projectsUi, WorkspaceStore(this).current().name,
+                menuUi, promptUi, formUi,
+                onAction = ::nativeAction,
+                onSession = { dispatchCommand(JSONObject().put("action", "session").put("id", it)) },
+                onProject = { name -> WorkspaceStore(this).list().find { it.name == name }?.let { WorkspaceStore(this).select(it); restart(true) } },
+                onPreference = ::updatePreference,
+                onCommand = ::dispatchCommand,
+                onDismissMenu = { menuUi = null }, onDismissPrompt = { promptUi = null }, onDismissForm = { formUi = null },
+                preferenceRequest = nativePreferencesRequest, commandsAllowed = commandsUi, preferencesReady = preferencesReady,
+                settingsSnapshot = settingsUi, onLink = { address -> Uri.parse(address).takeIf { it.scheme in setOf("https", "http") }?.let { openExternal(Intent(Intent.ACTION_VIEW, it)) } },
+                onSubmitProject = { name, address -> background {
+                    val store = WorkspaceStore(this)
+                    if (address != null) store.cloneRepository(address, name) else store.select(store.create(name))
+                    runOnUiThread { projectsUi = store.list().map { it.name } }; restart(true)
+                } })
+        }
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 web.evaluateJavascript("""
-                    (()=>{const drawer=document.querySelector('[data-android-drawer-backdrop]');
-                    if(drawer){drawer.click();return true;}return false;})()
+                    (()=>{if(document.documentElement.dataset.androidSheet){window.dispatchEvent(new Event('dsh-android-sheet-close'));return true;}
+                    if(document.querySelector('[data-shortcut-modal="settings"]')){document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));return true;}
+                    const right=document.querySelector('[data-sidebar-right-panel]:not([aria-hidden="true"]) [data-sidebar-right-toggle]');
+                    if(right){right.click();return true;}return false;})()
                 """.trimIndent()) { handled ->
                     if (handled != "true") { if (!clearEngineHistory && web.canGoBack()) web.goBack() else moveTaskToBack(true) }
                 }
             }
         })
         EngineService.state.observe(this) { state ->
-            progress.visibility = if (state.phase == "starting") View.VISIBLE else View.GONE
-            status.text = when (state.phase) {
-                "starting" -> getString(R.string.preparing)
-                "running" -> WorkspaceStore(this).current().name
-                "error" -> state.message
-                else -> getString(R.string.engine_stopped)
-            }
+            engineUi = state
             if (state.phase != "running") {
+                preferencesReady = false; navigationReady = false
+                settingsUi = JSONObject()
                 clearEngineHistory = true
                 rememberLocation()
                 loadedOrigin = null
@@ -225,6 +247,7 @@ class MainActivity : ComponentActivity() {
             if (state.phase == "running" && state.origin != loadedOrigin) {
                 val origin = requireNotNull(state.origin)
                 configureDownloads(origin)
+                configureHostActions(origin)
                 CookieManager.getInstance().setCookie(origin, "dsh_android=${state.token}; Path=/; HttpOnly; SameSite=Strict") {
                     runOnUiThread {
                         val current = EngineService.state.value
@@ -272,15 +295,52 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    private fun configureHostActions(origin: String) {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) return
+        WebViewCompat.removeWebMessageListener(web, "AndroidHost")
+        WebViewCompat.addWebMessageListener(web, "AndroidHost", setOf(origin)) { _, message, source, mainFrame, _ ->
+            if (!mainFrame || !sameOrigin(source)) return@addWebMessageListener
+            val payload = try { JSONObject(message.data ?: "") } catch (_: org.json.JSONException) { return@addWebMessageListener }
+            when (payload.optString("action")) {
+                "appearance" -> {
+                    val dark = payload.optBoolean("dark", false)
+                    web.setBackgroundColor(if (dark) 0xFF151517.toInt() else 0xFFFFFBFE.toInt())
+                    WindowCompat.getInsetsController(window, web).apply {
+                        isAppearanceLightStatusBars = !dark; isAppearanceLightNavigationBars = !dark
+                    }
+                }
+                "workspace" -> openMenu("workspace")
+                "engine" -> openMenu("engine")
+                "commands" -> commandPermission()
+                "openPreferences" -> nativePreferencesRequest++
+                "settingsState" -> if (message.data.orEmpty().length <= 524288) settingsUi = payload
+                "preferences" -> {
+                    val families = payload.optJSONObject("fontFamilies")
+                    preferencesUi = preferencesUi.copy(theme=payload.optString("theme", "system"),text=payload.optInt("text",14),code=payload.optInt("code",11),terminal=payload.optInt("terminal",13),locale=payload.optString("locale",""),textFamily=families?.optString("text").orEmpty(),codeFamily=families?.optString("code").orEmpty(),terminalFamily=families?.optString("terminal").orEmpty())
+                    preferencesReady = true; flushCommands()
+                    applyAppearance()
+                }
+                "navigationState" -> {
+                    val sessions = payload.optJSONArray("sessions")
+                    sessionsUi = (0 until minOf(sessions?.length() ?: 0, 5000)).mapNotNull { index -> sessions?.optJSONObject(index)?.let { NativeSession(it.optString("id"), it.optString("title")) } }
+                    val panels = payload.optJSONArray("panels")
+                    panelsUi = (0 until minOf(panels?.length() ?: 0, 100)).mapNotNull { index -> panels?.optJSONObject(index)?.let { NativePanel(it.optString("id"), it.optString("title")) } }
+                    navigationReady = true; flushCommands()
+                }
+            }
+        }
+        settingsDocumentScript?.remove()
+        settingsDocumentScript = if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            WebViewCompat.addDocumentStartJavaScript(web, assets.open("settings-bridge.js").bufferedReader().use { it.readText() }, setOf(origin))
+        } else null
+    }
     private fun startEngine() {
         val webViewVersion = WebEngineSupport.chromiumMajor(web.settings.userAgentString) ?: 0
         if (webViewVersion < 113) {
-            AlertDialog.Builder(this).setMessage(R.string.update_webview)
-                .setPositiveButton(R.string.update) { _, _ ->
-                    val provider = WebViewCompat.getCurrentWebViewPackage(this)?.packageName
-                    openExternal(if (provider != null) Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$provider"))
-                        else Intent(android.provider.Settings.ACTION_APPLICATION_SETTINGS))
-                }.setNegativeButton(android.R.string.cancel, null).show()
+            promptUi = NativePrompt(getString(R.string.update), getString(R.string.update_webview), getString(R.string.update)) {
+                val provider = WebViewCompat.getCurrentWebViewPackage(this)?.packageName
+                openExternal(if (provider != null) Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$provider")) else Intent(android.provider.Settings.ACTION_APPLICATION_SETTINGS))
+            }
             return
         }
         if (Build.VERSION.SDK_INT >= 33) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -291,9 +351,9 @@ class MainActivity : ComponentActivity() {
     private fun openExternal(intent: Intent) {
         try { startActivity(intent) }
         catch (_: android.content.ActivityNotFoundException) {
-            AlertDialog.Builder(this).setMessage(R.string.external_unavailable).setPositiveButton(android.R.string.ok, null).show()
+            promptUi = NativePrompt(getString(R.string.error_title), getString(R.string.external_unavailable))
         } catch (_: SecurityException) {
-            AlertDialog.Builder(this).setMessage(R.string.external_unavailable).setPositiveButton(android.R.string.ok, null).show()
+            promptUi = NativePrompt(getString(R.string.error_title), getString(R.string.external_unavailable))
         }
     }
     private fun restart(resetRoute: Boolean = false) {
@@ -302,75 +362,84 @@ class MainActivity : ComponentActivity() {
             EngineService.restart(applicationContext)
         }
     }
-    private fun openMenu(anchor: View) {
-        PopupMenu(this, anchor).apply {
-            menu.add(getString(R.string.start)).setOnMenuItemClickListener { startEngine(); true }
-            menu.add(getString(R.string.stop)).setOnMenuItemClickListener { EngineService.stop(this@MainActivity); true }
-            menu.add(getString(R.string.restart)).setOnMenuItemClickListener { restart(); true }
-            menu.add(getString(R.string.new_project)).setOnMenuItemClickListener {
-                val field = EditText(this@MainActivity).apply { hint = getString(R.string.project_name); setSingleLine() }
-                AlertDialog.Builder(this@MainActivity).setTitle(R.string.new_project).setView(field)
-                    .setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.done) { _, _ ->
-                        background { val store = WorkspaceStore(this@MainActivity); store.select(store.create(field.text.toString().trim())); restart(true) }
-                    }.show()
-                true
-            }
-            WorkspaceStore(this@MainActivity).list().forEach { project ->
-                menu.add("↳ ${project.name}").setOnMenuItemClickListener {
-                    WorkspaceStore(this@MainActivity).select(project); restart(true); true
-                }
-            }
-            menu.add(getString(R.string.clone_project)).setOnMenuItemClickListener {
-                val fields = LinearLayout(this@MainActivity).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), 0, dp(20), 0) }
-                val address = EditText(this@MainActivity).apply { hint = getString(R.string.repository_url); setSingleLine(); inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI }
-                val name = EditText(this@MainActivity).apply { hint = getString(R.string.project_name); setSingleLine() }
-                fields.addView(address); fields.addView(name)
-                AlertDialog.Builder(this@MainActivity).setTitle(R.string.clone_project).setView(fields)
-                    .setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.done) { _, _ ->
-                        background { WorkspaceStore(this@MainActivity).cloneRepository(address.text.toString().trim(), name.text.toString().trim()); restart(true) }
-                    }.show()
-                true
-            }
-            menu.add(getString(R.string.import_project)).setOnMenuItemClickListener { importProject.launch(arrayOf("application/zip", "application/x-zip-compressed")); true }
-            menu.add(getString(R.string.export_project)).setOnMenuItemClickListener {
-                exporting = WorkspaceStore(this@MainActivity).current(); exportProject.launch("${exporting!!.name}.zip"); true
-            }
-            menu.add(getString(R.string.commands)).setOnMenuItemClickListener { commandPermission(); true }
-            menu.add(getString(R.string.diagnostics)).setOnMenuItemClickListener {
-                background {
-                    val log = File(cacheDir, "engine.log")
-                    val text = if (log.isFile) log.readText().takeLast(32768) else getString(R.string.engine_stopped)
-                    runOnUiThread {
-                        if (isFinishing || isDestroyed) return@runOnUiThread
-                        val content = TextView(this@MainActivity).apply { setText(text); setTextIsSelectable(true); textSize = 12f; setPadding(dp(16), dp(12), dp(16), dp(12)) }
-                        val scroll = android.widget.ScrollView(this@MainActivity).apply { addView(content) }
-                        AlertDialog.Builder(this@MainActivity).setTitle(R.string.diagnostics).setView(scroll).setPositiveButton(android.R.string.ok, null).show()
-                    }
-                }
-                true
-            }
-            menu.add(getString(R.string.about)).setOnMenuItemClickListener {
-                AlertDialog.Builder(this@MainActivity).setTitle("DSH for Android ${BuildConfig.VERSION_NAME}")
-                    .setMessage(R.string.version_notice).setPositiveButton(android.R.string.ok, null).show()
-                true
-            }
-            show()
+    private fun dispatchCommand(payload: JSONObject) {
+        val ready = if (payload.optString("action") == "preference") preferencesReady else navigationReady
+        if (!ready || loadedOrigin == null || !sameOrigin(Uri.parse(web.url ?: ""))) {
+            if (pendingCommands.size >= 32) pendingCommands.removeFirst()
+            pendingCommands.addLast(payload)
+            return
         }
+        web.evaluateJavascript("window.dispatchEvent(new CustomEvent('dsh-material-command',{detail:$payload}));", null)
+    }
+    private fun updatePreference(value: JSONObject) {
+        val stored = getSharedPreferences("appearance",MODE_PRIVATE)
+        when {
+            value.has("palette") -> value.optString("palette").takeIf { it in appPalettes.map { p -> p.first } }?.let { preferencesUi=preferencesUi.copy(palette=it); stored.edit().putString("palette",it).apply(); applyAppearance() }
+            value.has("font") -> value.optString("font").takeIf { it in setOf("system","noto","mono") }?.let { choice ->
+                preferencesUi=preferencesUi.copy(font=choice); stored.edit().putString("font",choice).apply()
+                val family=when(choice){"noto"->"'DSH Noto', sans-serif";"mono"->"monospace";else->""}
+                listOf("text","code","terminal").forEach { role -> dispatchCommand(JSONObject().put("action","preference").put("value",JSONObject().put("role",role).put("fontFamily",family))) }
+                applyAppearance()
+            }
+            value.has("animations") -> { preferencesUi=preferencesUi.copy(animations=value.optBoolean("animations")); stored.edit().putBoolean("animations",preferencesUi.animations).apply(); applyAppearance() }
+            else -> dispatchCommand(JSONObject().put("action","preference").put("value",value))
+        }
+    }
+    private fun applyAppearance() {
+        if(loadedOrigin==null || !sameOrigin(Uri.parse(web.url.orEmpty()))) return
+        val dark=when(preferencesUi.theme){"dark"->true;"light"->false;else->resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES}
+        val colors=if(preferencesUi.palette=="dynamic" && Build.VERSION.SDK_INT>=31) { if(dark) androidx.compose.material3.dynamicDarkColorScheme(this) else androidx.compose.material3.dynamicLightColorScheme(this) } else appColorScheme(preferencesUi.palette,dark)
+        fun css(color: androidx.compose.ui.graphics.Color) = "#%06x".format(color.toArgb() and 0xffffff)
+        val payload=JSONObject().put("reduce",!preferencesUi.animations || !android.animation.ValueAnimator.areAnimatorsEnabled()).put("font",preferencesUi.font).put("primary",css(colors.primary)).put("onPrimary",css(colors.onPrimary)).put("surface",css(colors.surface)).put("onSurface",css(colors.onSurface)).put("container",css(colors.surfaceContainer)).put("outline",css(colors.outlineVariant))
+        web.evaluateJavascript("""(()=>{const p=$payload,r=document.documentElement;r.dataset.androidReduceMotion=String(p.reduce);r.dataset.androidFont=p.font;let s=document.getElementById('android-appearance');if(!s){s=document.createElement('style');s.id='android-appearance';document.head.append(s)}s.textContent="@font-face{font-family:'DSH Noto';src:url('/android-font/noto-sans-sc.ttf') format('truetype');font-weight:100 900;font-display:swap} :root{--md-sys-color-primary:"+p.primary+";--md-sys-color-on-primary:"+p.onPrimary+";--md-sys-color-outline-variant:"+p.outline+";--dsw-alias-bg-base:"+p.surface+";--dsw-alias-text-primary:"+p.onSurface+";--md-sys-color-surface-container:"+p.container+";}";window.dispatchEvent(new Event('dsh-android-appearance'))})()""",null)
+    }
+    // Resources.openRawResource reads any uncompiled file resource, including
+    // res/font TTFs. Lint's @RawRes annotation is narrower than this API behavior.
+    @SuppressLint("ResourceType")
+    private fun bundledFont(): java.io.InputStream = resources.openRawResource(R.font.noto_sans_sc)
+    private fun flushCommands() {
+        val commands = pendingCommands.toList()
+        pendingCommands.clear()
+        commands.forEach(::dispatchCommand)
+    }
+    private fun nativeAction(action: String) {
+        when (action) {
+            "start" -> startEngine()
+            "stop" -> EngineService.stop(this)
+            "restart" -> restart()
+            "newProject" -> formUi = NativeProjectForm()
+            "cloneProject" -> formUi = NativeProjectForm(clone = true)
+            "importProject" -> importProject.launch(arrayOf("application/zip", "application/x-zip-compressed"))
+            "exportProject" -> { exporting = WorkspaceStore(this).current(); exportProject.launch("${exporting!!.name}.zip") }
+            "commands" -> commandPermission()
+            "engine" -> openMenu("engine")
+            "about" -> promptUi = NativePrompt("DSH for Android ${BuildConfig.VERSION_NAME}", getString(R.string.version_notice)+"\n\nDeepSeek Harness · 0.2.1-rc.3\nJetpack Compose · Material 3\nNoto Sans SC · SIL OFL 1.1\n\nhttps://jimmy-xuzimo.github.io/DSH-for-Android/", if(preferencesUi.locale.startsWith("zh")) "项目网站" else "Project website") { openExternal(Intent(Intent.ACTION_VIEW,Uri.parse("https://jimmy-xuzimo.github.io/DSH-for-Android/"))) }
+            "diagnostics" -> background {
+                val file = File(cacheDir, "engine.log")
+                val text = if (file.isFile) file.readText().takeLast(32768) else getString(R.string.engine_stopped)
+                runOnUiThread { promptUi = NativePrompt(getString(R.string.diagnostics), text) }
+            }
+        }
+    }
+    private fun openMenu(section: String) {
+        val entries = if (section == "workspace") listOf(
+            getString(R.string.new_project) to "newProject", getString(R.string.clone_project) to "cloneProject",
+            getString(R.string.import_project) to "importProject", getString(R.string.export_project) to "exportProject"
+        ) else listOf(getString(R.string.start) to "start", getString(R.string.stop) to "stop", getString(R.string.restart) to "restart", getString(R.string.diagnostics) to "diagnostics")
+        menuUi = NativeMenu(if (section == "workspace") getString(R.string.workspaces) else "DSH", entries.map { (name, action) -> name to { nativeAction(action) } })
     }
     private fun commandPermission() {
         val preferences = getSharedPreferences("dsh", MODE_PRIVATE)
         val enabled = preferences.getBoolean("commands", false)
-        AlertDialog.Builder(this).setTitle(R.string.commands).setMessage(R.string.command_warning)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(if (enabled) R.string.disable else R.string.enable) { _, _ ->
-                preferences.edit().putBoolean("commands", !enabled).apply(); restart()
-            }.show()
+        promptUi = NativePrompt(getString(R.string.commands), getString(R.string.command_warning), getString(if (enabled) R.string.disable else R.string.enable)) {
+            preferences.edit().putBoolean("commands", !enabled).apply(); commandsUi = !enabled; restart()
+        }
     }
     private fun background(action: () -> Unit) {
         io.submit {
             try { action() }
             catch (error: Exception) { runOnUiThread {
-                if (!isFinishing && !isDestroyed) AlertDialog.Builder(this).setTitle(R.string.error_title).setMessage(error.message).setPositiveButton(android.R.string.ok, null).show()
+                if (!isFinishing && !isDestroyed) promptUi = NativePrompt(getString(R.string.error_title), error.message ?: "Unknown error")
             } }
         }
     }
@@ -395,6 +464,7 @@ class MainActivity : ComponentActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         web.settings.textZoom = (newConfig.fontScale * 100).toInt().coerceIn(75, 200)
+        applyAppearance()
     }
     override fun onDestroy() {
         upload?.onReceiveValue(null); upload = null

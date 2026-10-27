@@ -13,6 +13,29 @@ class NativeRuntimeTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private fun binary(name: String) = File(context.applicationInfo.nativeLibraryDir, "libdsh_$name.so")
 
+    @Test fun agentFilesystemCreatesAndEditsWithoutHardlinksOrClobbering() {
+        val runtime = RuntimeInstaller(context).install()
+        val project = File(context.cacheDir, "agent-fs-${System.nanoTime()}").apply { mkdirs() }
+        val entry = File(project, "filesystem-agent.mjs")
+        InstrumentationRegistry.getInstrumentation().context.assets.open("filesystem-agent.mjs").use { input ->
+            entry.outputStream().use { input.copyTo(it) }
+        }
+        val builder = ProcessBuilder(binary("node").path, "--import", File(runtime, "android/native-loader.mjs").path, entry.path)
+            .directory(project).redirectErrorStream(true)
+        builder.environment().apply {
+            put("DSH_ANDROID_NATIVE_DIR", context.applicationInfo.nativeLibraryDir)
+            put("DSH_ANDROID_RUNTIME", runtime.path)
+            put("LD_LIBRARY_PATH", context.applicationInfo.nativeLibraryDir)
+        }
+        val process = builder.start()
+        try {
+            assertTrue("Agent filesystem timed out", process.waitFor(30, TimeUnit.SECONDS))
+            val output = process.inputStream.bufferedReader().readText()
+            assertEquals(output, 0, process.exitValue())
+            assertTrue(output, output.contains("AGENT_FILESYSTEM_OK"))
+        } finally { process.destroyForcibly(); project.deleteRecursively() }
+    }
+
     @Test fun androidKeystoreProtectsThePersistentRuntimeKey() {
         val first = KeyVault(context).runtimeKey()
         assertEquals(first, KeyVault(context).runtimeKey())
